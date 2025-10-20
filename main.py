@@ -24,7 +24,7 @@ cursor_turret = pg.image.load('assets/turrets/mouse_turret_02_mk1.png').convert_
 enemy_image = pg.image.load('assets/balloon/towerDefense_tile245.png').convert_alpha()
 
 #load json data for level
-with open('assets/level/MAP+TRIAL.tmj') as file:
+with open('assets/level/Map+LineShortest.tmj') as file:
   world_data = json.load(file)
 
 BUILDABLE_TILES = [489, 490, 550, 551]
@@ -43,7 +43,7 @@ def create_turret(mouse_pos):
       turret_group.add(new_turret)
 
 #create world
-world = World(world_data, map_image, "Shortest") 
+world = World(world_data, map_image, "Longest") 
 world.process_data()
 
 #create groups
