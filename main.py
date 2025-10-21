@@ -20,6 +20,8 @@ pg.display.set_caption("Tower Defence")
 placing_turrets = False
 
 #load images
+#turret spritesheets
+turret_sheet = pg.image.load('assets/turrets/turret_02_mk1_(1).png').convert_alpha()
 #map
 map_image = pg.image.load('assets/map.jpeg').convert_alpha()
 #turrets
@@ -34,19 +36,17 @@ cancel_image = pg.image.load('assets/button/cancel.png').convert_alpha()
 with open('assets/level/Map+LineShortest.tmj') as file:
   world_data = json.load(file)
 
-BUILDABLE_TILES = [489, 490, 550, 551]
-
 def create_turret(mouse_pos):
   mouse_tile_x = mouse_pos[0] // c.TILE_SIZE
   mouse_tile_y = mouse_pos[1] // c.TILE_SIZE
   mouse_tile_num = (mouse_tile_y * c.COLS) + mouse_tile_x
-  if world.tile_map[mouse_tile_num] in BUILDABLE_TILES:
+  if world.tile_map[mouse_tile_num] in c.BUILDABLE_TILES:
     space_is_free = True
     for turret in turret_group:
       if (mouse_tile_x, mouse_tile_y) == (turret.tile_x, turret.tile_y):
         space_is_free = False
     if space_is_free == True:
-      new_turret = Turret(cursor_turret, mouse_tile_x, mouse_tile_y)
+      new_turret = Turret(turret_sheet, mouse_tile_x, mouse_tile_y)
       turret_group.add(new_turret)
 
 #create world
