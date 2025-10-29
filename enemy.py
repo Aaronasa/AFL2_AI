@@ -8,7 +8,18 @@ import constants as c
 class Enemy(pg.sprite.Sprite):
   # --- 1. MODIFIKASI __init__ ---
   # Tambahkan health, speed, dan reward sebagai parameter
-  def __init__(self, waypoints, image, health, speed, reward):
+  def __init__(self, waypoints, image, health, speed, reward, path_name = "Unknown"):
+
+    """
+    Args:
+      waypoints: List koordinat path yang akan dilalui
+      image: Sprite image enemy
+      health: Max health enemy
+      speed: Kecepatan enemy (pixels per frame)
+      reward: Gold yang didapat saat enemy mati
+      path_name: Nama path yang dipilih ("Shortest" atau "Longest")
+    """
+    
     pg.sprite.Sprite.__init__(self)
     self.waypoints = waypoints
     self.pos = Vector2(self.waypoints[0])
@@ -23,6 +34,7 @@ class Enemy(pg.sprite.Sprite):
     self.max_health = health # <-- Gunakan parameter
     self.health = self.max_health 
     self.reward = reward # <-- Simpan reward
+    self.committed_path = path_name
 
   def update(self):
     reached_end = self.move()
@@ -70,8 +82,22 @@ class Enemy(pg.sprite.Sprite):
       self.kill() 
       return self.reward # <-- Kembalikan reward yang disimpan
     return 0 
-  # --- AKHIR MODIFIKASI ---
+ 
+  def draw_path_name(self, surface, font):
+    """
+    Menggambar nama path di atas musuh (di atas health bar).
+    """
+    text = font.render(self.committed_path, True, (255, 255, 255)) # Putih
+    text_rect = text.get_rect()
+    
+    # Hitung posisi teks di atas health bar
+    bar_height = 5
+    y_offset = (self.rect.height / 2) + 10 + bar_height 
+    
+    text_rect.center = (self.pos.x, self.pos.y - y_offset)
+    surface.blit(text, text_rect)
 
+  # --- AKHIR MODIFIKASI ---
   def draw_health_bar(self, surface):
     if self.health < self.max_health:
       bar_width = 40

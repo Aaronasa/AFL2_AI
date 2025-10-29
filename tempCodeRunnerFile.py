@@ -24,7 +24,7 @@ placing_turrets = False
 selected_turret = None
 last_enemy_spawn = pg.time.get_ticks() 
 spawn_cooldown = 1000 
-health = 100
+health = 1
 money = 100 
 
 # --- 2. MODIFIKASI LOAD IMAGES ---
@@ -171,11 +171,6 @@ while run:
   # Tampilkan Teks UI
   draw_text(f"Health: {health}", text_font, (0, 0, 0), c.SCREEN_WIDTH + 10, 20)
   draw_text(f"Money: ${money}", text_font, (0, 0, 0), c.SCREEN_WIDTH + 10, 60) 
-
-  if health <= 0:
-    run = False
-    print("GAME OVER!.")
-
 
   #draw buttons
   if turret_button.draw(screen):

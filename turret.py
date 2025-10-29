@@ -7,7 +7,7 @@ import constants as c
 class Turret(pg.sprite.Sprite):
   def __init__(self, sprite_sheet, tile_x, tile_y):
     pg.sprite.Sprite.__init__(self)
-    self.range = 90
+    self.range = 100
     self.cooldown = 500 
     self.damage = 1 
     self.last_shot = pg.time.get_ticks()

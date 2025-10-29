@@ -9,6 +9,7 @@ class World():
     self.level_data = data
     self.image = map_image
     self.tile_map = []
+    self.current_path_name = "Shortest"
     # Hapus self.path_name
 
   def process_data(self):
