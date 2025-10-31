@@ -91,6 +91,23 @@ class Turret(pg.sprite.Sprite):
       y_dist = self.target.pos[1] - self.y
       self.angle = math.degrees(math.atan2(-y_dist, x_dist))
 
+# BUAT CHECK ACCURACY
+      # try:
+      #       from pathfinder import turret_accuracy_log
+      #       turret_accuracy_log["total"] += 1
+      #       # Benar jika turret memilih musuh dengan waypoint tertinggi (paling maju)
+      #       is_correct = all(
+      #           (e.target_waypoint <= best_enemy.target_waypoint)
+      #           for e in enemy_group
+      #           if math.sqrt((e.pos[0] - self.x)**2 + (e.pos[1] - self.y)**2) < self.range
+      #       )
+      #       if is_correct:
+      #           turret_accuracy_log["correct"] += 1
+
+      #       print(f"[Turret Accuracy] Correct={turret_accuracy_log['correct']}, Total={turret_accuracy_log['total']}")
+      # except Exception as e:
+      #       print("Error logging turret accuracy:", e)
+
   # --- 2. MODIFIKASI FUNGSI PLAY_ANIMATION ---
   def play_animation(self):
     reward = 0 # <-- Buat var reward

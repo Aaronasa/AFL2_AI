@@ -1,17 +1,18 @@
 # pathfinder.py
 import math
-import constants as c
+import time
+# import constants as c
 
 # ==== Fungsi bantu ====
 def is_in_turret_range(pixel_pos, turret):
     """Cek apakah titik pixel berada dalam jangkauan turret."""
     px, py = pixel_pos
-    tx, ty = turret.rect.center
+    tx, ty = turret.rect.center 
     dist = math.sqrt((px - tx) ** 2 + (py - ty) ** 2)
     return dist < turret.range
 
 
-def calculate_turrets_on_path(pixel_points, turret_group, sample_interval=10):
+def calculate_turrets_on_path(pixel_points, turret_group, sample_interval):
     """
     Hitung berapa turret yang bisa menjangkau path.
     Jika satu turret bisa menjangkau bagian mana pun dari path, dihitung sekali.
@@ -82,6 +83,9 @@ def astar_choose_best_path(json_data, turret_group, sample_interval=10):
     1. Jumlah turret yang bisa menjangkau path (lebih sedikit lebih baik)
     2. Kalau sama → pilih path terpendek
     """
+
+    # start = time.perf_counter()
+
     # 1. Parse path dari JSON
     paths_data = {}
     for path_name in ["Shortest", "Longest"]:
@@ -132,8 +136,13 @@ def astar_choose_best_path(json_data, turret_group, sample_interval=10):
         f"F-cost: {best_path_data['f_cost']:.2f})\n"
     )
 
+    # end = time.perf_counter()
+    # print(f"[A*] Execution time: {end - start:.2f} sec")
     return best_path_data["pixel_points"], best_path_name
 
+# Parameter accuracy doang
+path_accuracy_log = {"correct": 0, "total": 0}
+turret_accuracy_log = {"correct": 0, "total": 0}
 
 # ==== Wrapper agar tetap kompatibel dengan main.py ====
 def choose_best_path(json_data, turret_group):
@@ -141,4 +150,14 @@ def choose_best_path(json_data, turret_group):
     Wrapper agar tetap kompatibel dengan kode lama.
     Sekarang memakai A* versi baru dengan prioritas turret_count & distance.
     """
-    return astar_choose_best_path(json_data, turret_group)
+    pixel_points, chosen_path = astar_choose_best_path(json_data, turret_group)
+
+    # Hitung akurasi (berapa kali AI memilih jalur terpendek)
+    # global path_accuracy_log
+    # path_accuracy_log["total"] += 1
+    # if chosen_path == "Shortest":
+    #     path_accuracy_log["correct"] += 1
+
+    # print(f"[Accuracy] Total: {path_accuracy_log['total']}, Correct: {path_accuracy_log['correct']}")
+
+    return pixel_points, chosen_path

@@ -9,6 +9,7 @@ from turret import Turret
 from button import Button
 import constants as c
 import pathfinder as pf 
+import psutil
 
 #initialise pygame
 pg.init()
@@ -58,7 +59,7 @@ spawn_list = ["regular", "regular", "regular", "regular", "fast", "fast", "stron
 with open('assets/level/Map+LineShortest.tmj') as file:
   world_data = json.load(file)
 
-# Fungsi untuk menggambar teks
+# Fungsi untuk menggambar healt bar musuh
 def draw_text(text, font, text_col, x, y):
   img = font.render(text, True, text_col)
   screen.blit(img, (x, y))
@@ -110,6 +111,15 @@ turret_button = Button(c.SCREEN_WIDTH + 30, 120, buy_turret_image, True)
 cancel_button = Button(c.SCREEN_WIDTH + 50, 180, cancel_image, True)
 delete_button = Button(c.SCREEN_WIDTH + 50, 240, cancel_image, True) 
 
+# Buat check memory disk
+mem_low = None
+mem_high = None
+
+def get_memory_usage():
+    process = psutil.Process()
+    mem = process.memory_info().rss / (1024 * 1024)
+    return mem
+
 #game loop
 run = True
 while run:
@@ -151,6 +161,23 @@ while run:
   for turret in turret_group:
     reward = turret.update(enemy_group)
     money += reward 
+
+# Check memory usage
+  # enemy_count = len(enemy_group)
+  # turret_count = len(turret_group)
+  # total_entities = enemy_count + turret_count
+
+  # if total_entities == 5 and mem_low is None:
+  #     mem_low = get_memory_usage()
+  #     print(f"[Memory] Few objects (≈5) usage: {mem_low:.2f} MB")
+
+  # if total_entities >= 30 and mem_high is None:
+  #     mem_high = get_memory_usage()
+  #     print(f"[Memory] Many objects (≥50) usage: {mem_high:.2f} MB")
+
+  # if mem_low is not None and mem_high is not None:
+  #     diff = mem_high - mem_low
+  #     draw_text(f"Disk Diff: {diff:.2f} MB", text_font, (0, 0, 0), c.SCREEN_WIDTH + 10, 180)
 
   #highlight selected turret
   if selected_turret:
