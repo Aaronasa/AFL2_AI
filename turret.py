@@ -20,6 +20,11 @@ class Turret(pg.sprite.Sprite):
     self.x = (self.tile_x + 0.5) * c.TILE_SIZE
     self.y = (self.tile_y + 0.5) * c.TILE_SIZE
 
+    # --- INI MODIFIKASI PENTING ---
+    # Menghitung jangkauan turret dalam satuan tile (petak)
+    self.tile_range = math.ceil(self.range / c.TILE_SIZE)
+    # --- AKHIR MODIFIKASI ---
+
     #animation variables
     self.sprite_sheet = sprite_sheet
     self.animation_list = self.load_images()
@@ -48,23 +53,22 @@ class Turret(pg.sprite.Sprite):
       animation_list.append(temp_img)
     return animation_list
 
-  # --- 1. MODIFIKASI FUNGSI UPDATE ---
+  # Fungsi update yang mengembalikan reward
   def update(self, enemy_group):
-    reward = 0 # <-- Buat var reward
+    reward = 0 # Buat var reward
     
     # Cek jika target still alive
     if self.target and not self.target.alive():
       self.target = None 
 
     if self.target:
-      reward = self.play_animation() # <-- Tangkap reward dari play_animation
+      reward = self.play_animation() # Tangkap reward dari play_animation
     else:
       if pg.time.get_ticks() - self.last_shot > self.cooldown:
         self.pick_target(enemy_group)
         self.original_image = self.animation_list[0]
         
-    return reward # <-- Kembalikan reward ke main.py
-  # --- AKHIR MODIFIKASI ---
+    return reward # Kembalikan reward ke main.py
 
   def pick_target(self, enemy_group):
     best_enemy = None
@@ -91,9 +95,9 @@ class Turret(pg.sprite.Sprite):
       y_dist = self.target.pos[1] - self.y
       self.angle = math.degrees(math.atan2(-y_dist, x_dist))
 
-  # --- 2. MODIFIKASI FUNGSI PLAY_ANIMATION ---
+  # Fungsi play_animation yang mengembalikan reward
   def play_animation(self):
-    reward = 0 # <-- Buat var reward
+    reward = 0 # Buat var reward
     self.original_image = self.animation_list[self.frame_index]
     
     if pg.time.get_ticks() - self.update_time > c.ANIMATION_DELAY:
@@ -104,13 +108,12 @@ class Turret(pg.sprite.Sprite):
         self.frame_index = 0
         
         if self.target:
-          reward = self.target.hit(self.damage) # <-- Tangkap reward dari hit()
+          reward = self.target.hit(self.damage) # Tangkap reward dari hit()
 
         self.last_shot = pg.time.get_ticks()
         self.target = None
         
-    return reward # <-- Kembalikan reward ke update()
-  # --- AKHIR MODIFIKASI ---
+    return reward # Kembalikan reward ke update()
 
   def draw(self, surface):
     self.image = pg.transform.rotate(self.original_image, self.angle - 90)
