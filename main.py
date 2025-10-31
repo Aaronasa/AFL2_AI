@@ -2,7 +2,7 @@
 
 import pygame as pg
 import random
-import math
+import math # <-- Pastikan ini ada (dibutuhkan untuk recalculate_path)
 from enemy import Enemy
 from world import World
 from turret import Turret
@@ -14,7 +14,6 @@ import pathfinder as pf
 pg.init() 
 
 # 2. BUAT JENDELA (LAYAR) UTAMA
-# Ini adalah baris yang WAJIB ada SEBELUM .convert_alpha()
 screen = pg.display.set_mode((c.SCREEN_WIDTH + c.SIDE_PANEL, c.SCREEN_HEIGHT))
 pg.display.set_caption("Tower Defence")
 
@@ -35,14 +34,12 @@ money = 1000
 try:
     grass_image = pg.image.load('assets/grass.jpeg').convert_alpha()
     path_image = pg.image.load('assets/path.jpeg').convert_alpha()
-    # TAMBAHKAN INI
     start_image = pg.image.load('assets/start.jpeg').convert_alpha()
     end_image = pg.image.load('assets/end.jpeg').convert_alpha()
 except pg.error as e:
     print(f"Error loading tile images: {e}")
     grass_image = pg.Surface((c.TILE_SIZE, c.TILE_SIZE)); grass_image.fill((0, 100, 0))
     path_image = pg.Surface((c.TILE_SIZE, c.TILE_SIZE)); path_image.fill((100, 100, 100))
-    # TAMBAHKAN INI
     start_image = pg.Surface((c.TILE_SIZE, c.TILE_SIZE)); start_image.fill((255, 255, 255))
     end_image = pg.Surface((c.TILE_SIZE, c.TILE_SIZE)); end_image.fill((0, 0, 0))
 
@@ -50,21 +47,40 @@ except pg.error as e:
 tile_images = {
     c.BUILDABLE_TILE_ID: grass_image,
     c.PATH_TILE_ID: path_image,
-    # TAMBAHKAN INI
     c.START_TILE_ID: start_image,
     c.END_TILE_ID: end_image
 }
 # --- AKHIR MODIFIKASI LOAD (Bagian 1) ---
 
-# ... (Load gambar turret, cursor, button tetap SAMA) ...
+# --- DI SINI PERBAIKANNYA (VERSI BARU) ---
+# Hapus: BLACK = (0, 0, 0) dan WHITE = (255, 255, 255)
+
+# Load gambar turret, cursor, button
 turret_sheet = pg.image.load('assets/turrets/turret_02_mk1_(1).png').convert_alpha()
+# GANTI: turret_sheet.set_colorkey(BLACK)
+# MENJADI: (Baca warna di pixel (0,0) dan jadikan transparan)
+turret_sheet.set_colorkey(turret_sheet.get_at((0, 0))) 
+
 cursor_turret = pg.image.load('assets/turrets/mouse_turret_02_mk1.png').convert_alpha()
+# GANTI: cursor_turret.set_colorkey(BLACK)
+# MENJADI:
+cursor_turret.set_colorkey(cursor_turret.get_at((0, 0)))
+
 buy_turret_image = pg.image.load('assets/button/buy_turret.png').convert_alpha()
 cancel_image = pg.image.load('assets/button/cancel.png').convert_alpha()
 
-# ... (Load gambar enemy dan data enemy tetap SAMA) ...
+# Load gambar enemy dan data enemy
 enemy_image_base = pg.image.load('assets/balloon/towerDefense_tile245.png').convert_alpha()
+# GANTI: enemy_image_base.set_colorkey(WHITE)
+# MENJADI:
+enemy_image_base.set_colorkey(enemy_image_base.get_at((0, 0)))
+
 image_strong = pg.transform.scale(enemy_image_base, (int(enemy_image_base.get_width() * 1.5), int(enemy_image_base.get_height() * 1.5)))
+# GANTI: image_strong.set_colorkey(WHITE)
+# MENJADI: (Kita set colorkey-nya DARI GAMBAR ASLI)
+image_strong.set_colorkey(enemy_image_base.get_at((0, 0)))
+# --- AKHIR PERBAIKAN ---
+
 enemy_data = {
     "regular": {"health": 2, "speed": 2, "reward": c.ENEMY_REWARD, "image": enemy_image_base},
     "strong": {"health": 10, "speed": 1, "reward": 50, "image": image_strong},
@@ -72,12 +88,6 @@ enemy_data = {
 }
 spawn_list = ["regular", "regular", "regular", "regular", "fast", "fast", "strong"]
 
-
-# --- HAPUS SEMUA KODE 'with open .tmj' ---
-# Hapus:
-# with open('assets/level/Map+LineShortest.tmj') as file:
-#  world_data = json.load(file)
-# --- AKHIR HAPUS ---
 
 # ... (Fungsi draw_text, create_turret, select_turret, clear_selection tetap SAMA) ...
 def draw_text(text, font, text_col, x, y):
@@ -118,10 +128,14 @@ def clear_selection():
 world = World("assets/level/map_layout.txt", tile_images) 
 world.process_data() # Ini akan membaca .txt dan mencari Start/End
 
+background_surface = pg.Surface((c.SCREEN_WIDTH, c.SCREEN_HEIGHT))
+world.draw(background_surface) 
+
 #create groups
 enemy_group = pg.sprite.Group()
 turret_group = pg.sprite.Group()
 
+# --- MODIFIKASI TOTAL recalculate_path ---
 def recalculate_path():
   print("Mencari path baru (mempertimbangkan bahaya)...")
   
@@ -130,29 +144,26 @@ def recalculate_path():
   for turret in turret_group:
     turret_tiles.add((turret.tile_x, turret.tile_y))
 
-  # 2. Buat "Danger Map": Kumpulan semua tile (x, y) yang ada di range turret
+  # 2. Buat "Danger Map"
   danger_zones = set()
   for turret in turret_group:
-    # Hanya cek petak-petak di sekitar turret (optimasi)
     tr = turret.tile_range
     for y in range(max(0, turret.tile_y - tr), min(c.ROWS, turret.tile_y + tr + 1)):
       for x in range(max(0, turret.tile_x - tr), min(c.COLS, turret.tile_x + tr + 1)):
-        # Hitung jarak pixel dari PUSAT turret ke PUSAT petak
         tile_center_x = (x + 0.5) * c.TILE_SIZE
         tile_center_y = (y + 0.5) * c.TILE_SIZE
         dist = math.sqrt((turret.x - tile_center_x)**2 + (turret.y - tile_center_y)**2)
         
-        # Jika petak ini dalam jangkauan, tandai sebagai berbahaya
         if dist <= turret.range:
           danger_zones.add((x, y))
 
-  # 3. Cari path menggunakan A*, sekarang dengan info bahaya
+  # 3. Cari path menggunakan A*
   path_tiles = pf.find_path(
       world.tile_map, 
       world.start_tile_pos, 
       world.end_tile_pos, 
       turret_tiles,
-      danger_zones # <-- Argumen baru
+      danger_zones # Argumen baru
   )
   
   if path_tiles:
@@ -160,7 +171,8 @@ def recalculate_path():
     world.convert_path_to_pixels(path_tiles)
   else:
     print("❌ PERINGATAN: Tidak ada path! Musuh tidak bisa bergerak.")
-    world.waypoints = []
+    world.waypoints = [] # Kosongkan waypoints
+# --- AKHIR MODIFIKASI recalculate_path ---
 
 # Hitung path pertama kali saat game dimulai
 recalculate_path()
@@ -175,8 +187,13 @@ run = True
 while run:
 
   clock.tick(c.FPS)
+  
   screen.fill("grey100")
-  world.draw(screen)
+
+  # --- OPTIMASI 2: GAMBAR BACKGROUND ---
+  screen.blit(background_surface, (0, 0))
+  # --- AKHIR OPTIMASI 2 ---
+
 
   # Gambar path (untuk debug)
   if world.waypoints:
@@ -184,11 +201,9 @@ while run:
 
   # --- MODIFIKASI SPAWN ENEMIES ---
   if pg.time.get_ticks() - last_enemy_spawn > spawn_cooldown:
-    # Hanya spawn jika ada path
     if world.waypoints: 
       enemy_type_name = random.choice(spawn_list)
       stats = enemy_data[enemy_type_name]
-      # Hapus 'path_name' dari parameter
       enemy = Enemy(
           world.waypoints, 
           stats["image"], 
@@ -223,8 +238,6 @@ while run:
   enemy_group.draw(screen)
   for enemy in enemy_group:
     enemy.draw_health_bar(screen)
-    # HAPUS BARIS INI:
-    # enemy.draw_path_name(screen, debug_font)
   for turret in turret_group:
     turret.draw(screen)
 
@@ -267,7 +280,6 @@ while run:
             turret_was_placed = create_turret(mouse_pos)
             if turret_was_placed:
               money -= c.TURRET_COST 
-              # Panggil recalculate_path() SETELAH turret ditaruh
               recalculate_path() 
               placing_turrets = False 
           else:
