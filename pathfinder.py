@@ -1,163 +1,125 @@
 # pathfinder.py
+import heapq
 import math
-import time
-# import constants as c
+import constants as c
 
-# ==== Fungsi bantu ====
-def is_in_turret_range(pixel_pos, turret):
-    """Cek apakah titik pixel berada dalam jangkauan turret."""
-    px, py = pixel_pos
-    tx, ty = turret.rect.center 
-    dist = math.sqrt((px - tx) ** 2 + (py - ty) ** 2)
-    return dist < turret.range
+# Biaya untuk berjalan di petak berbahaya
+DANGER_COST = 10 
 
+class Node:
+    """Node untuk algoritma A*"""
+    def __init__(self, parent=None, position=None):
+        self.parent = parent
+        self.position = position # (x, y)
+        self.g = 0 # Jarak dari awal
+        self.h = 0 # Heuristic (jarak ke akhir)
+        self.f = 0 # f = g + h
 
-def calculate_turrets_on_path(pixel_points, turret_group, sample_interval):
+    def __eq__(self, other):
+        return self.position == other.position
+
+    def __lt__(self, other):
+        return self.f < other.f
+
+    def __hash__(self):
+        return hash(self.position)
+
+def heuristic(a, b):
+    """Menghitung heuristic (Manhattan distance)"""
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+# Fungsi di-update untuk menerima 'danger_zones'
+def find_path(tile_map_1d, start_pos_xy, end_pos_xy, turret_tiles, danger_zones):
     """
-    Hitung berapa turret yang bisa menjangkau path.
-    Jika satu turret bisa menjangkau bagian mana pun dari path, dihitung sekali.
+    Mencari path dari start ke end menggunakan A*.
+    Args:
+        tile_map_1d: List 1D dari tile map (world.tile_map)
+        start_pos_xy: Tuple (x, y) tile start
+        end_pos_xy: Tuple (x, y) tile end
+        turret_tiles: Set berisi tuple (x, y) dari semua turret (obstacle)
+        danger_zones: Set berisi tuple (x, y) dari petak yg ter-cover turret
     """
-    turrets_in_range = set()
-
-    for turret in turret_group:
-        for i in range(len(pixel_points) - 1):
-            p1 = pixel_points[i]
-            p2 = pixel_points[i + 1]
-
-            segment_length = math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)
-            num_samples = max(int(segment_length / sample_interval), 1)
-
-            for j in range(num_samples + 1):
-                t = j / num_samples
-                sample_x = p1[0] + t * (p2[0] - p1[0])
-                sample_y = p1[1] + t * (p2[1] - p1[1])
-
-                if is_in_turret_range((sample_x, sample_y), turret):
-                    turrets_in_range.add(turret)
-                    break  # cukup hitung turret ini sekali saja
-
-    return len(turrets_in_range)
-
-
-def euclidean_distance(p1, p2):
-    """Hitung jarak Euclidean antar titik."""
-    return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
-
-
-def calculate_path_length(pixel_points):
-    """Hitung total panjang path."""
-    total = 0
-    for i in range(len(pixel_points) - 1):
-        total += euclidean_distance(pixel_points[i], pixel_points[i + 1])
-    return total
-
-
-def parse_path_from_json(json_data, path_name):
-    """Ambil path dari file map JSON."""
-    obj_layer = next(
-        (
-            layer
-            for layer in json_data["layers"]
-            if layer["name"] == path_name and layer["type"] == "objectgroup"
-        ),
-        None,
-    )
-
-    if not obj_layer or not obj_layer["objects"]:
+    
+    if not start_pos_xy or not end_pos_xy:
+        print("❌ A* Error: Start atau End Pos tidak ditemukan.")
         return None
 
-    obj = obj_layer["objects"][0]
-    poly = obj["polyline"]
-    offset_x = obj["x"]
-    offset_y = obj["y"]
+    # Tile yang boleh dilewati (Jalan, Start, End)
+    walkable_tile_ids = {c.PATH_TILE_ID, c.START_TILE_ID, c.END_TILE_ID}
 
-    return [(p["x"] + offset_x, p["y"] + offset_y) for p in poly]
+    start_node = Node(None, start_pos_xy)
+    end_node = Node(None, end_pos_xy)
 
+    open_list = []
+    closed_set = set()
 
-# ==== A* Algorithm versi baru ====
-def astar_choose_best_path(json_data, turret_group, sample_interval=10):
-    """
-    Algoritma A* versi disederhanakan untuk memilih path terbaik.
-    
-    Prioritas:
-    1. Jumlah turret yang bisa menjangkau path (lebih sedikit lebih baik)
-    2. Kalau sama → pilih path terpendek
-    """
+    heapq.heappush(open_list, start_node)
 
-    # start = time.perf_counter()
+    while open_list:
+        try:
+            current_node = heapq.heappop(open_list)
+        except IndexError:
+            break # Open list kosong, tidak ada path
 
-    # 1. Parse path dari JSON
-    paths_data = {}
-    for path_name in ["Shortest", "Longest"]:
-        pixel_points = parse_path_from_json(json_data, path_name)
-        if pixel_points:
-            paths_data[path_name] = pixel_points
+        closed_set.add(current_node.position)
 
-    if not paths_data:
-        print("❌ Tidak ada path valid ditemukan!")
-        return [], "None"
+        # Path ditemukan
+        if current_node == end_node:
+            path = []
+            current = current_node
+            while current is not None:
+                path.append(current.position)
+                current = current.parent
+            return path[::-1] # Kembalikan path dari Awal -> Akhir
 
-    if len(paths_data) == 1:
-        name = list(paths_data.keys())[0]
-        return paths_data[name], name
+        # Cek tetangga (Atas, Bawah, Kiri, Kanan)
+        for new_position in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
+            node_position = (
+                current_node.position[0] + new_position[0],
+                current_node.position[1] + new_position[1]
+            )
 
-    # 2. Evaluasi tiap path (anggap seperti "node" dalam A*)
-    path_evaluations = {}
-    for path_name, pixel_points in paths_data.items():
-        turret_count = calculate_turrets_on_path(pixel_points, turret_group, sample_interval)
-        distance = calculate_path_length(pixel_points)
+            # 1. Cek Batasan Map
+            if (node_position[0] > (c.COLS - 1) or 
+                node_position[0] < 0 or 
+                node_position[1] > (c.ROWS - 1) or 
+                node_position[1] < 0):
+                continue
 
-        # Di A*, f = g + h → di sini "f" = bobot total (turret_count + panjang path)
-        # Kita tetap jaga format, walaupun path cuma dua
-        f_cost = turret_count * 1000 + distance / 1000.0  # Turret jauh lebih berpengaruh
+            # 2. Cek apakah sudah di closed list
+            if node_position in closed_set:
+                continue
 
-        path_evaluations[path_name] = {
-            "turret_count": turret_count,
-            "distance": distance,
-            "f_cost": f_cost,
-            "pixel_points": pixel_points,
-        }
+            # 3. Cek apakah obstacle (Turret)
+            if node_position in turret_tiles:
+                continue
 
-        print(f"Path '{path_name}':")
-        print(f"  - Jumlah Turret: {turret_count}")
-        print(f"  - Panjang Path : {distance:.2f}")
-        print(f"  - F-cost (A* heuristic): {f_cost:.2f}")
+            # 4. Cek apakah tile bisa dilewati (bukan rumput)
+            tile_index = node_position[1] * c.COLS + node_position[0]
+            tile_id = tile_map_1d[tile_index]
+            if tile_id not in walkable_tile_ids:
+                continue
 
-    # 3. Pilih path dengan f_cost terendah
-    best_path_name = min(path_evaluations, key=lambda name: path_evaluations[name]["f_cost"])
-    best_path_data = path_evaluations[best_path_name]
+            # Jika semua OK, buat node baru
+            new_node = Node(current_node, node_position)
 
-    # 4. Logging hasil keputusan
-    print("\n=== A* Path Decision ===")
-    print(f"=> Enemy memilih path: {best_path_name}")
-    print(
-        f"   (Turret: {best_path_data['turret_count']}, "
-        f"Distance: {best_path_data['distance']:.2f}, "
-        f"F-cost: {best_path_data['f_cost']:.2f})\n"
-    )
+            # --- INI LOGIKA BARU ---
+            # Hitung biaya bergerak ke petak ini
+            move_cost = 1 # Biaya normal
+            if node_position in danger_zones:
+                move_cost = DANGER_COST # Biaya jika berbahaya!
 
-    # end = time.perf_counter()
-    # print(f"[A*] Execution time: {end - start:.2f} sec")
-    return best_path_data["pixel_points"], best_path_name
+            new_node.g = current_node.g + move_cost
+            # --- AKHIR LOGIKA BARU ---
 
-# Parameter accuracy doang
-path_accuracy_log = {"correct": 0, "total": 0}
-turret_accuracy_log = {"correct": 0, "total": 0}
+            new_node.h = heuristic(new_node.position, end_node.position)
+            new_node.f = new_node.g + new_node.h
 
-# ==== Wrapper agar tetap kompatibel dengan main.py ====
-def choose_best_path(json_data, turret_group):
-    """
-    Wrapper agar tetap kompatibel dengan kode lama.
-    Sekarang memakai A* versi baru dengan prioritas turret_count & distance.
-    """
-    pixel_points, chosen_path = astar_choose_best_path(json_data, turret_group)
+            # Cek jika tetangga sudah di open list
+            if any(open_node.position == new_node.position and new_node.g > open_node.g for open_node in open_list):
+                continue
+                
+            heapq.heappush(open_list, new_node)
 
-    # Hitung akurasi (berapa kali AI memilih jalur terpendek)
-    # global path_accuracy_log
-    # path_accuracy_log["total"] += 1
-    # if chosen_path == "Shortest":
-    #     path_accuracy_log["correct"] += 1
-
-    # print(f"[Accuracy] Total: {path_accuracy_log['total']}, Correct: {path_accuracy_log['correct']}")
-
-    return pixel_points, chosen_path
+    print("❌ A* Error: Tidak ada path yang ditemukan.")
+    return None # Tidak ada path
